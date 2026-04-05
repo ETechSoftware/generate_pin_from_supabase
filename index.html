@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 50px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: none;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+        .status-active { color: #28a745; font-weight: bold; }
+        .status-expired { color: #dc3545; font-weight: bold; }
+        .status-pending { color: #ffc107; font-weight: bold; }
+        .table-hover tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+        .form-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            max-width: 400px;
+        }
+        .badge-subscription {
+            font-size: 0.9em;
+            padding: 5px 10px;
+        }
+        .action-buttons .btn {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .nav-tabs .nav-link {
+            color: #667eea;
+            font-weight: 500;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .connection-info {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.85em;
+        }
+        .connection-info code {
+            font-size: 0.8em;
+            background: #e9ecef;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .school-id-display {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+        .school-id-full {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            background: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            z-index: 1000;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .remaining-days {
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+        .days-critical { background-color: #dc3545; color: white; }
+        .days-warning { background-color: #ffc107; color: #212529; }
+        .days-good { background-color: #28a745; color: white; }
+        .days-neutral { background-color: #6c757d; color: white; }
+        .pin-display {
+            font-family: monospace;
+            font-weight: bold;
+            color: #0d6efd;
+            background-color: #e7f1ff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px dashed #86b7fe;
+        }
+        .pin-generator-btn {
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h2 class="mb-0">
+                            <i class="bi bi-shield-lock"></i> Subscription Management System
+                        </h2>
+                        <div>
+                            <span id="connectionStatus" class="badge bg-secondary">Connecting...</span>
+                            <button class="btn btn-light btn-sm" onclick="subscriptionApp.refreshData()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button class="btn btn-light btn-sm ms-2" onclick="subscriptionApp.testConnection()">
+                                <i class="bi bi-plug"></i> Test
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2">Manage subscription PINs, client information, and monitor software licenses.</p>
+                        <div class="connection-info">
+                            <strong>Supabase URL:</strong> <code>https://jcplsxvfpjrbdrxdipcq.supabase.co</code><br>
+                            <strong>API Key:</strong> <code>sb_publishable_2z_yb7ve7KBs5Y1n43mpPw_hjmgOukg</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button">
+                    <i class="bi bi-table"></i> All Subscriptions
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="create-tab" data-bs-toggle="tab" data-bs-target="#create" type="button">
+                    <i class="bi bi-plus-circle"></i> Create New
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="search-tab" data-bs-toggle="tab" data-bs-target="#search" type="button">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button">
+                    <i class="bi bi-bar-chart"></i> Statistics
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="debug-tab" data-bs-toggle="tab" data-bs-target="#debug" type="button">
+                    <i class="bi bi-bug"></i> Debug
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Contents -->
+        <div class="tab-content">
+            <!-- Data Display Tab -->
+            <div class="tab-pane fade show active" id="data" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h4 class="mb-0">All Subscription Records</h4>
+                                <div class="d-flex">
+                                    <input type="text" id="filterInput" class="form-control form-control-sm search-box" 
+                                           placeholder="Search records..." onkeyup="subscriptionApp.filterTable()">
+                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="subscriptionApp.exportToCSV()">
+                                        <i class="bi bi-download"></i> Export
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="dataTable">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Client</th>
+                                                <th>Company</th>
+                                                <th>Email</th>
+                                                <th>Start Date</th>
+                                                <th>End Date</th>
+                                                <th>Remaining Days</th>
+                                                <th>PIN</th>
+                                                <th>PIN Hash</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tableBody">
+                                            <tr>
+                                                <td colspan="10" class="text-center">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Loading...</span>
+                                                    </div>
+                                                    <p class="mt-2">Connecting to Supabase...</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div id="recordCount">Loading records...</div>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="subscriptionApp.loadData('all')">All</button>
+                                        <button class="btn btn-sm btn-outline-success" onclick="subscriptionApp.loadData('active')">Active</button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="subscriptionApp.loadData('expired')">Expired</button>
+                                        <button class="btn btn-sm btn-outline-warning" onclick="subscriptionApp.loadData('pending')">Pending</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create/Edit Tab -->
+            <div class="tab-pane fade" id="create" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="mb-0" id="formTitle">Create New Subscription</h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="subscriptionForm" onsubmit="subscriptionApp.handleSubmit(event)">
+                                    <input type="hidden" id="recordId">
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="client_name" class="form-label">Client Name *</label>
+                                                <input type="text" class="form-control" id="client_name" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="company_name" class="form-label">Company Name *</label>
+                                                <input type="text" class="form-control" id="company_name" required>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="address" class="form-label">Address *</label>
+                                        <textarea class="form-control" id="address" rows="2" required></textarea>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="contact_number" class="form-label">Contact Number *</label>
+                                                <input type="text" class="form-control" id="contact_number" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="email" class="form-label">Email *</label>
+                                                <input type="email" class="form-control" id="email" required>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="payment_name" class="form-label">Payment Name</label>
+                                                <input type="text" class="form-control" id="payment_name">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="reference_number" class="form-label">Reference Number</label>
+                                                <input type="text" class="form-control" id="reference_number">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="pin_number" class="form-label">PIN Number *</label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="pin_number" required>
+                                                    <button type="button" class="btn btn-outline-secondary" onclick="subscriptionApp.generateRandomPin()" title="Generate Random PIN">
+                                                        <i class="bi bi-shuffle"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="form-text">This is the plain PIN that will be displayed in the table</div>
+                                                <button type="button" class="btn btn-outline-info btn-sm pin-generator-btn" onclick="subscriptionApp.generateRandomPin()">
+                                                    <i class="bi bi-dice-6"></i> Generate Random PIN (6-12 digits)
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="plain_pin" class="form-label">Plain PIN</label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="plain_pin" readonly>
+                                                    <button type="button" class="btn btn-outline-secondary" onclick="subscriptionApp.copyPlainPin()">
+                                                        <i class="bi bi-clipboard"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="form-text">Copy of original PIN for easy reference</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="pin_hash" class="form-label">PIN Hash</label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="pin_hash" readonly>
+                                                    <button type="button" class="btn btn-outline-secondary" onclick="subscriptionApp.copyPinHash()">
+                                                        <i class="bi bi-clipboard"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="form-text">SHA-256 hash for security</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="software_start_date" class="form-label">Start Date *</label>
+                                                <input type="date" class="form-control" id="software_start_date" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="duration_value" class="form-label">Duration Value *</label>
+                                                <input type="number" class="form-control" id="duration_value" min="1" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="duration_unit" class="form-label">Duration Unit *</label>
+                                                <select class="form-control" id="duration_unit" required>
+                                                    <option value="days">Days</option>
+                                                    <option value="weeks">Weeks</option>
+                                                    <option value="months" selected>Months</option>
+                                                    <option value="years">Years</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="subscription_status" class="form-label">Status *</label>
+                                                <select class="form-control" id="subscription_status" required>
+                                                    <option value="active">Active</option>
+                                                    <option value="expired">Expired</option>
+                                                    <option value="pending" selected>Pending</option>
+                                                    <option value="trial">Trial</option>
+                                                    <option value="cancelled">Cancelled</option>
+                                                    <option value="unknown">Unknown</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="last_renewal_date" class="form-label">Last Renewal Date</label>
+                                                <input type="date" class="form-control" id="last_renewal_date">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Auto Renew</label>
+                                                <div class="form-check form-switch mt-2">
+                                                    <input class="form-check-input" type="checkbox" id="auto_renew" checked>
+                                                    <label class="form-check-label" for="auto_renew">Enable Auto Renew</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between">
+                                        <button type="button" class="btn btn-secondary" onclick="subscriptionApp.resetForm()">
+                                            <i class="bi bi-x-circle"></i> Reset
+                                        </button>
+                                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                                            <i class="bi bi-check-circle"></i> Create Subscription
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Tab -->
+            <div class="tab-pane fade" id="search" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="mb-0">Search Subscriptions</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-4">
+                                    <div class="col-md-8">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="searchInput" placeholder="Search by client, company, email, PIN, or PIN hash...">
+                                            <button class="btn btn-primary" type="button" onclick="subscriptionApp.performSearch()">
+                                                <i class="bi bi-search"></i> Search
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select class="form-control" id="searchBy">
+                                            <option value="all">Search All Fields</option>
+                                            <option value="client_name">Client Name</option>
+                                            <option value="company_name">Company Name</option>
+                                            <option value="email">Email</option>
+                                            <option value="pin_number">PIN Number</option>
+                                            <option value="pin_hash">PIN Hash</option>
+                                            <option value="reference_number">Reference Number</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="searchResults">
+                                        <thead class="table-info">
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Client</th>
+                                                <th>Email</th>
+                                                <th>Status</th>
+                                                <th>Start Date</th>
+                                                <th>End Date</th>
+                                                <th>PIN</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="searchResultsBody">
+                                            <tr>
+                                                <td colspan="8" class="text-center text-muted">
+                                                    Enter search terms to find subscriptions
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div class="tab-pane fade" id="stats" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card text-white bg-primary">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Subscriptions</h5>
+                                <h2 id="totalCount" class="card-text">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-success">
+                            <div class="card-body">
+                                <h5 class="card-title">Active</h5>
+                                <h2 id="activeCount" class="card-text">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-warning">
+                            <div class="card-body">
+                                <h5 class="card-title">Pending</h5>
+                                <h2 id="pendingCount" class="card-text">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-danger">
+                            <div class="card-body">
+                                <h5 class="card-title">Expired</h5>
+                                <h2 id="expiredCount" class="card-text">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Status Distribution</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Expiring Soon (Next 30 Days)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Client</th>
+                                                <th>End Date</th>
+                                                <th>Days Left</th>
+                                                <th>PIN</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="expiringSoonBody">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">
+                                                    Load data to see expiring subscriptions
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Debug Tab -->
+            <div class="tab-pane fade" id="debug" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="mb-0">Debug & Connection Info</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h5>Connection Status</h5>
+                                                <div class="mb-3">
+                                                    <span id="debugConnectionStatus" class="badge bg-secondary">Unknown</span>
+                                                </div>
+                                                <button class="btn btn-primary" onclick="subscriptionApp.testConnection()">
+                                                    <i class="bi bi-plug"></i> Test Connection
+                                                </button>
+                                                <button class="btn btn-secondary" onclick="subscriptionApp.clearDebugLog()">
+                                                    <i class="bi bi-trash"></i> Clear Log
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h5>Database Info</h5>
+                                                <p><strong>Table Name:</strong> pin_id_table</p>
+                                                <p><strong>Row Count:</strong> <span id="debugRowCount">-</span></p>
+                                                <p><strong>Last Refresh:</strong> <span id="lastRefresh">Never</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Debug Log</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="debugLog" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.9em;">
+                                            <div class="text-muted">Debug messages will appear here...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card mt-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Raw API Test</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Test Supabase Query</label>
+                                            <div class="input-group">
+                                                <select class="form-control" id="testQuery">
+                                                    <option value="select_all">SELECT * FROM pin_id_table</option>
+                                                    <option value="count">SELECT COUNT(*) FROM pin_id_table</option>
+                                                    <option value="schema">Get Table Schema</option>
+                                                </select>
+                                                <button class="btn btn-primary" onclick="subscriptionApp.runTestQuery()">
+                                                    <i class="bi bi-play"></i> Run
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label class="form-label">Response:</label>
+                                            <pre id="apiResponse" class="bg-light p-3" style="min-height: 100px; max-height: 300px; overflow-y: auto;">{}</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast for notifications -->
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+            <div id="notificationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                    <strong class="me-auto" id="toastTitle">Notification</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body" id="toastMessage">
+                    Operation completed successfully.
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div class="modal fade" id="deleteModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to delete this subscription record? This action cannot be undone.
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Type Definitions (based on supabase.ts) -->
+    <script>
+        // TypeScript-like type definitions based on supabase.ts
+        const SubscriptionStatus = {
+            ACTIVE: 'active',
+            EXPIRED: 'expired',
+            PENDING: 'pending',
+            TRIAL: 'trial',
+            CANCELLED: 'cancelled',
+            UNKNOWN: 'unknown'
+        };
+
+        const DurationUnit = {
+            DAYS: 'days',
+            WEEKS: 'weeks',
+            MONTHS: 'months',
+            YEARS: 'years'
+        };
+
+        // Pin ID Table interface - UPDATED to include plain_pin
+        class PinIdTableRecord {
+            constructor(data = {}) {
+                this.address = data.address || '';
+                this.auto_renew = data.auto_renew || false;
+                this.client_name = data.client_name || '';
+                this.company_name = data.company_name || '';
+                this.contact_number = data.contact_number || '';
+                this.created_at = data.created_at || null;
+                this.duration_unit = data.duration_unit || DurationUnit.MONTHS;
+                this.duration_value = data.duration_value || 1;
+                this.email = data.email || '';
+                this.id = data.id || null;
+                this.last_renewal_date = data.last_renewal_date || null;
+                this.payment_name = data.payment_name || null;
+                this.pin_hash = data.pin_hash || null;
+                this.pin_number = data.pin_number || ''; // Plain PIN number
+                this.plain_pin = data.plain_pin || data.pin_number || ''; // Explicit plain PIN field
+                this.reference_number = data.reference_number || null;
+                this.software_end_date = data.software_end_date || '';
+                this.software_start_date = data.software_start_date || '';
+                this.subscription_status = data.subscription_status || SubscriptionStatus.PENDING;
+                this.updated_at = data.updated_at || null;
+            }
+
+            validate() {
+                const errors = [];
+                if (!this.client_name) errors.push('Client name is required');
+                if (!this.company_name) errors.push('Company name is required');
+                if (!this.email) errors.push('Email is required');
+                if (!this.contact_number) errors.push('Contact number is required');
+                if (!this.address) errors.push('Address is required');
+                if (!this.pin_number) errors.push('PIN number is required');
+                if (!this.software_start_date) errors.push('Start date is required');
+                if (!this.subscription_status) errors.push('Status is required');
+                if (!this.duration_unit) errors.push('Duration unit is required');
+                if (!this.duration_value || this.duration_value < 1) errors.push('Valid duration value is required');
+                return errors;
+            }
+
+            calculateEndDate() {
+                const startDate = new Date(this.software_start_date);
+                let endDate = new Date(startDate);
+                
+                switch(this.duration_unit) {
+                    case DurationUnit.DAYS:
+                        endDate.setDate(endDate.getDate() + this.duration_value);
+                        break;
+                    case DurationUnit.WEEKS:
+                        endDate.setDate(endDate.getDate() + (this.duration_value * 7));
+                        break;
+                    case DurationUnit.MONTHS:
+                        endDate.setMonth(endDate.getMonth() + this.duration_value);
+                        break;
+                    case DurationUnit.YEARS:
+                        endDate.setFullYear(endDate.getFullYear() + this.duration_value);
+                        break;
+                }
+                
+                this.software_end_date = endDate.toISOString().split('T')[0];
+                return this.software_end_date;
+            }
+
+            calculateRemainingDays() {
+                if (!this.software_end_date) return null;
+                
+                const endDate = new Date(this.software_end_date);
+                const today = new Date();
+                const timeDiff = endDate - today;
+                const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                
+                return daysLeft;
+            }
+
+            getRemainingDaysClass(daysLeft) {
+                if (daysLeft <= 0) return 'days-critical';
+                if (daysLeft <= 7) return 'days-critical';
+                if (daysLeft <= 30) return 'days-warning';
+                if (daysLeft <= 90) return 'days-good';
+                return 'days-neutral';
+            }
+
+            static fromForm(formData) {
+                const record = new PinIdTableRecord();
+                record.client_name = formData.client_name;
+                record.company_name = formData.company_name;
+                record.address = formData.address;
+                record.contact_number = formData.contact_number;
+                record.email = formData.email;
+                record.payment_name = formData.payment_name || null;
+                record.reference_number = formData.reference_number || null;
+                record.pin_number = formData.pin_number;
+                record.plain_pin = formData.pin_number; // Store plain PIN separately
+                record.pin_hash = formData.pin_hash || null;
+                record.software_start_date = formData.software_start_date;
+                record.duration_value = parseInt(formData.duration_value);
+                record.duration_unit = formData.duration_unit;
+                record.subscription_status = formData.subscription_status;
+                record.last_renewal_date = formData.last_renewal_date || null;
+                record.auto_renew = formData.auto_renew || false;
+                
+                record.calculateEndDate();
+                return record;
+            }
+        }
+    </script>
+
+    <!-- Main Application -->
+    <script>
+        class SubscriptionManagementApp {
+            constructor() {
+                this.SUPABASE_URL = 'https://jcplsxvfpjrbdrxdipcq.supabase.co';
+                this.SUPABASE_ANON_KEY = 'sb_publishable_2z_yb7ve7KBs5Y1n43mpPw_hjmgOukg';
+                
+                this.supabase = window.supabase.createClient(this.SUPABASE_URL, this.SUPABASE_ANON_KEY);
+                this.allData = [];
+                this.currentRecordId = null;
+                this.chartInstance = null;
+            }
+
+            async init() {
+                this.logDebug('Initializing Subscription Management App');
+                this.logDebug('Supabase URL: ' + this.SUPABASE_URL);
+                this.logDebug('API Key: ' + this.SUPABASE_ANON_KEY.substring(0, 20) + '...');
+                
+                await this.testConnection();
+                this.initializeForm();
+                this.setTodayAsDefaultDate();
+                this.setupEventListeners();
+                
+                this.loadData();
+            }
+
+            logDebug(message) {
+                const debugLog = document.getElementById('debugLog');
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${message}`;
+                debugLog.appendChild(logEntry);
+                debugLog.scrollTop = debugLog.scrollHeight;
+                console.log('[SubscriptionApp]', message);
+            }
+
+            clearDebugLog() {
+                document.getElementById('debugLog').innerHTML = '<div class="text-muted">Debug messages will appear here...</div>';
+            }
+
+            async testConnection() {
+                try {
+                    this.logDebug('Testing connection to Supabase...');
+                    this.updateConnectionStatus('testing', 'Testing...');
+                    
+                    const { data, error, count } = await this.supabase
+                        .from('pin_id_table')
+                        .select('*', { count: 'exact', head: true });
+                    
+                    if (error) {
+                        this.logDebug('Connection failed: ' + error.message);
+                        this.logDebug('Error code: ' + error.code);
+                        this.logDebug('Error details: ' + JSON.stringify(error));
+                        
+                        this.updateConnectionStatus('error', 'Connection Failed');
+                        this.showNotification('Connection failed: ' + error.message, 'error');
+                        
+                        if (error.code === 'PGRST301') {
+                            this.showNotification('Table "pin_id_table" not found. Please create the table in Supabase first.', 'error');
+                        } else if (error.code === '42501') {
+                            this.showNotification('Permission denied. Please check RLS policies or use the service role key.', 'error');
+                        }
+                        
+                        return false;
+                    }
+                    
+                    this.logDebug('Connection successful!');
+                    this.updateConnectionStatus('success', 'Connected');
+                    this.showNotification('Successfully connected to Supabase!', 'success');
+                    
+                    document.getElementById('debugRowCount').textContent = count || 0;
+                    document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+                    
+                    return true;
+                    
+                } catch (err) {
+                    this.logDebug('Connection error: ' + err.message);
+                    this.updateConnectionStatus('error', 'Error');
+                    this.showNotification('Connection error: ' + err.message, 'error');
+                    return false;
+                }
+            }
+
+            updateConnectionStatus(status, text) {
+                const statusBadge = document.getElementById('connectionStatus');
+                const debugStatus = document.getElementById('debugConnectionStatus');
+                
+                const badges = {
+                    'testing': 'bg-warning',
+                    'success': 'bg-success',
+                    'error': 'bg-danger',
+                    'connecting': 'bg-secondary'
+                };
+                
+                const badgeClass = badges[status] || 'bg-secondary';
+                
+                statusBadge.className = 'badge ' + badgeClass;
+                statusBadge.textContent = text;
+                
+                debugStatus.className = 'badge ' + badgeClass;
+                debugStatus.textContent = text;
+            }
+
+            setTodayAsDefaultDate() {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('software_start_date').value = today;
+                document.getElementById('duration_value').value = 1;
+            }
+
+            setupEventListeners() {
+                document.getElementById('duration_value').addEventListener('change', () => this.calculateEndDate());
+                document.getElementById('duration_unit').addEventListener('change', () => this.calculateEndDate());
+                document.getElementById('software_start_date').addEventListener('change', () => this.calculateEndDate());
+                document.getElementById('pin_number').addEventListener('input', () => {
+                    this.generatePinHash();
+                    this.updatePlainPin();
+                });
+                document.getElementById('confirmDeleteBtn').addEventListener('click', () => this.deleteRecord());
+            }
+
+            calculateEndDate() {
+                const startDate = new Date(document.getElementById('software_start_date').value);
+                const durationValue = parseInt(document.getElementById('duration_value').value) || 1;
+                const durationUnit = document.getElementById('duration_unit').value;
+                
+                if (!isNaN(startDate.getTime())) {
+                    const endDate = new Date(startDate);
+                    
+                    switch(durationUnit) {
+                        case 'days':
+                            endDate.setDate(endDate.getDate() + durationValue);
+                            break;
+                        case 'weeks':
+                            endDate.setDate(endDate.getDate() + (durationValue * 7));
+                            break;
+                        case 'months':
+                            endDate.setMonth(endDate.getMonth() + durationValue);
+                            break;
+                        case 'years':
+                            endDate.setFullYear(endDate.getFullYear() + durationValue);
+                            break;
+                    }
+                    
+                    if (endDate > startDate) {
+                        this.logDebug(`End date calculated: ${endDate.toDateString()}`);
+                    }
+                }
+            }
+
+            updatePlainPin() {
+                const pin = document.getElementById('pin_number').value;
+                document.getElementById('plain_pin').value = pin;
+            }
+
+            // NEW METHOD: Generate random PIN (6-12 digits)
+            generateRandomPin() {
+                // Generate random length between 6 and 12
+                const length = Math.floor(Math.random() * 7) + 6;
+                
+                // Generate random PIN with digits only
+                let pin = '';
+                const digits = '0123456789';
+                
+                for (let i = 0; i < length; i++) {
+                    const randomIndex = Math.floor(Math.random() * digits.length);
+                    pin += digits[randomIndex];
+                }
+                
+                // Set the generated PIN
+                document.getElementById('pin_number').value = pin;
+                
+                // Update dependent fields
+                this.updatePlainPin();
+                this.generatePinHash();
+                
+                this.logDebug(`Generated random PIN: ${pin} (${length} digits)`);
+                this.showNotification(`Generated ${length}-digit random PIN`, 'success');
+            }
+
+            async generatePinHash() {
+                const pin = document.getElementById('pin_number').value;
+                if (pin) {
+                    try {
+                        const hash = await this.sha256(pin);
+                        document.getElementById('pin_hash').value = hash.substring(0, 64);
+                        this.logDebug('Generated PIN hash: ' + hash.substring(0, 16) + '...');
+                    } catch (error) {
+                        this.logDebug('Error generating hash: ' + error.message);
+                    }
+                }
+            }
+
+            copyPlainPin() {
+                const plainPinInput = document.getElementById('plain_pin');
+                plainPinInput.select();
+                plainPinInput.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                this.showNotification('Plain PIN copied to clipboard!', 'success');
+            }
+
+            copyPinHash() {
+                const pinHashInput = document.getElementById('pin_hash');
+                pinHashInput.select();
+                pinHashInput.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                this.showNotification('PIN hash copied to clipboard!', 'success');
+            }
+
+            async sha256(message) {
+                const msgBuffer = new TextEncoder().encode(message);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+
+            showFullSchoolId(element, schoolId) {
+                const fullIdElement = document.createElement('div');
+                fullIdElement.className = 'school-id-full';
+                fullIdElement.textContent = schoolId;
+                
+                element.appendChild(fullIdElement);
+                
+                setTimeout(() => {
+                    if (fullIdElement.parentNode === element) {
+                        element.removeChild(fullIdElement);
+                    }
+                }, 5000);
+            }
+
+            calculateRemainingDays(endDate) {
+                if (!endDate) return null;
+                const today = new Date();
+                const end = new Date(endDate);
+                const timeDiff = end - today;
+                const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                return daysLeft;
+            }
+
+            getRemainingDaysClass(daysLeft) {
+                if (daysLeft <= 0) return 'days-critical';
+                if (daysLeft <= 7) return 'days-critical';
+                if (daysLeft <= 30) return 'days-warning';
+                if (daysLeft <= 90) return 'days-good';
+                return 'days-neutral';
+            }
+
+            async loadData(filter = 'all') {
+                try {
+                    this.logDebug('Loading data from Supabase...');
+                    this.updateConnectionStatus('testing', 'Loading...');
+                    
+                    let query = this.supabase.from('pin_id_table').select('*').order('created_at', { ascending: false });
+                    
+                    if (filter !== 'all') {
+                        query = query.eq('subscription_status', filter);
+                    }
+                    
+                    const { data, error, count } = await query;
+                    
+                    if (error) {
+                        this.logDebug('Error loading data: ' + error.message + ' (code: ' + error.code + ')');
+                        this.updateConnectionStatus('error', 'Load Failed');
+                        
+                        const tableBody = document.getElementById('tableBody');
+                        tableBody.innerHTML = `
+                            <tr>
+                                <td colspan="10" class="text-center">
+                                    <div class="alert alert-danger">
+                                        <h5>Database Error</h5>
+                                        <p>${error.message}</p>
+                                        <p><small>Error code: ${error.code}</small></p>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="subscriptionApp.testConnection()">
+                                            Test Connection
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        this.showNotification('Error loading data: ' + error.message, 'error');
+                        return;
+                    }
+                    
+                    this.allData = data || [];
+                    this.logDebug(`Loaded ${this.allData.length} records from Supabase`);
+                    
+                    if (this.allData.length === 0) {
+                        this.logDebug('No records found in the database');
+                        this.showNotification('No subscription records found. Create your first record!', 'info');
+                    }
+                    
+                    this.displayData(this.allData);
+                    this.updateStatistics();
+                    this.updateConnectionStatus('success', 'Connected');
+                    
+                    document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+                    document.getElementById('debugRowCount').textContent = this.allData.length;
+                    
+                    this.showNotification(`Loaded ${this.allData.length} subscription records`, 'success');
+                    
+                } catch (error) {
+                    this.logDebug('Exception loading data: ' + error.message);
+                    this.updateConnectionStatus('error', 'Load Error');
+                    this.showNotification('Error loading data: ' + error.message, 'error');
+                }
+            }
+
+            displayData(data) {
+                const tableBody = document.getElementById('tableBody');
+                
+                if (data.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="10" class="text-center text-muted">
+                                No subscription records found. Create your first record!
+                            </td>
+                        </tr>
+                    `;
+                    document.getElementById('recordCount').textContent = '0 records found';
+                    return;
+                }
+                
+                let html = '';
+                data.forEach(record => {
+                    const statusClass = this.getStatusClass(record.subscription_status);
+                    const formattedStart = this.formatDate(record.software_start_date);
+                    const formattedEnd = this.formatDate(record.software_end_date);
+                    const shortHash = record.pin_hash ? record.pin_hash.substring(0, 16) + '...' : 'N/A';
+                    
+                    // Calculate remaining days
+                    const daysLeft = this.calculateRemainingDays(record.software_end_date);
+                    const daysClass = this.getRemainingDaysClass(daysLeft);
+                    const daysDisplay = daysLeft >= 0 ? `${daysLeft} days` : `Expired ${Math.abs(daysLeft)} days ago`;
+                    
+                    // Get plain PIN - use plain_pin if available, otherwise use pin_number
+                    const plainPin = record.plain_pin || record.pin_number || 'N/A';
+                    
+                    html += `
+                        <tr>
+                            <td>${record.id}</td>
+                            <td>${record.client_name}</td>
+                            <td>${record.company_name}</td>
+                            <td>${record.email}</td>
+                            <td>${formattedStart}</td>
+                            <td>${formattedEnd}</td>
+                            <td><span class="remaining-days ${daysClass}">${daysDisplay}</span></td>
+                            <td>
+                                <span class="pin-display" title="Plain PIN: ${plainPin}">
+                                    ${plainPin.substring(0, 8)}${plainPin.length > 8 ? '...' : ''}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="school-id-display" 
+                                      onclick="subscriptionApp.showFullSchoolId(this, '${record.pin_hash || 'N/A'}')"
+                                      title="Click to view full PIN hash for 5 seconds">
+                                    ${shortHash}
+                                </span>
+                            </td>
+                            <td class="action-buttons">
+                                <button class="btn btn-sm btn-outline-primary" onclick="subscriptionApp.editRecord(${record.id})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="subscriptionApp.viewRecord(${record.id})">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="subscriptionApp.confirmDelete(${record.id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tableBody.innerHTML = html;
+                document.getElementById('recordCount').textContent = `${data.length} records found`;
+            }
+
+            filterTable() {
+                const filter = document.getElementById('filterInput').value.toLowerCase();
+                const filteredData = this.allData.filter(record => 
+                    record.client_name.toLowerCase().includes(filter) ||
+                    record.company_name.toLowerCase().includes(filter) ||
+                    record.email.toLowerCase().includes(filter) ||
+                    (record.pin_hash && record.pin_hash.toLowerCase().includes(filter)) ||
+                    (record.pin_number && record.pin_number.toLowerCase().includes(filter)) ||
+                    (record.plain_pin && record.plain_pin.toLowerCase().includes(filter)) ||
+                    record.subscription_status.toLowerCase().includes(filter)
+                );
+                this.displayData(filteredData);
+            }
+
+            async performSearch() {
+                const searchTerm = document.getElementById('searchInput').value.trim();
+                const searchBy = document.getElementById('searchBy').value;
+                
+                if (!searchTerm) {
+                    this.showNotification('Please enter a search term', 'warning');
+                    return;
+                }
+                
+                this.logDebug(`Searching for: "${searchTerm}" in field: ${searchBy}`);
+                
+                try {
+                    let query = this.supabase.from('pin_id_table').select('*');
+                    
+                    if (searchBy === 'all') {
+                        query = query.or(`client_name.ilike.%${searchTerm}%,company_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,pin_number.ilike.%${searchTerm}%,pin_hash.ilike.%${searchTerm}%`);
+                    } else {
+                        query = query.ilike(searchBy, `%${searchTerm}%`);
+                    }
+                    
+                    const { data, error } = await query;
+                    
+                    if (error) {
+                        this.logDebug('Search error: ' + error.message);
+                        throw error;
+                    }
+                    
+                    this.displaySearchResults(data || []);
+                    this.logDebug(`Search found ${data.length} records`);
+                    this.showNotification(`Found ${data.length} records`, 'success');
+                } catch (error) {
+                    this.logDebug('Search exception: ' + error.message);
+                    this.showNotification('Error searching: ' + error.message, 'error');
+                }
+            }
+
+            displaySearchResults(results) {
+                const resultsBody = document.getElementById('searchResultsBody');
+                
+                if (results.length === 0) {
+                    resultsBody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">
+                                No results found.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                results.forEach(record => {
+                    const statusClass = this.getStatusClass(record.subscription_status);
+                    const formattedStart = this.formatDate(record.software_start_date);
+                    const formattedEnd = this.formatDate(record.software_end_date);
+                    
+                    // Get plain PIN
+                    const plainPin = record.plain_pin || record.pin_number || 'N/A';
+                    const shortPin = plainPin.substring(0, 8) + (plainPin.length > 8 ? '...' : '');
+                    
+                    html += `
+                        <tr>
+                            <td>${record.id}</td>
+                            <td>${record.client_name}</td>
+                            <td>${record.email}</td>
+                            <td><span class="${statusClass}">${record.subscription_status}</span></td>
+                            <td>${formattedStart}</td>
+                            <td>${formattedEnd}</td>
+                            <td>
+                                <span class="pin-display" title="Plain PIN: ${plainPin}">
+                                    ${shortPin}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="subscriptionApp.editRecord(${record.id})">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                resultsBody.innerHTML = html;
+            }
+
+            initializeForm() {
+                this.resetForm();
+            }
+
+            resetForm() {
+                document.getElementById('subscriptionForm').reset();
+                document.getElementById('recordId').value = '';
+                document.getElementById('formTitle').textContent = 'Create New Subscription';
+                document.getElementById('submitBtn').innerHTML = '<i class="bi bi-check-circle"></i> Create Subscription';
+                document.getElementById('submitBtn').className = 'btn btn-primary';
+                
+                this.setTodayAsDefaultDate();
+                document.getElementById('subscription_status').value = 'pending';
+                document.getElementById('auto_renew').checked = true;
+                
+                this.updatePlainPin();
+                this.generatePinHash();
+                this.logDebug('Form reset for new record');
+            }
+
+            async handleSubmit(event) {
+                event.preventDefault();
+                
+                const recordId = document.getElementById('recordId').value;
+                const isUpdate = !!recordId;
+                
+                this.logDebug(`${isUpdate ? 'Updating' : 'Creating'} subscription record...`);
+                
+                // Collect form data
+                const formData = {
+                    client_name: document.getElementById('client_name').value,
+                    company_name: document.getElementById('company_name').value,
+                    address: document.getElementById('address').value,
+                    contact_number: document.getElementById('contact_number').value,
+                    email: document.getElementById('email').value,
+                    payment_name: document.getElementById('payment_name').value || null,
+                    reference_number: document.getElementById('reference_number').value || null,
+                    pin_number: document.getElementById('pin_number').value,
+                    plain_pin: document.getElementById('pin_number').value, // Store plain PIN separately
+                    pin_hash: document.getElementById('pin_hash').value || null,
+                    software_start_date: document.getElementById('software_start_date').value,
+                    duration_value: parseInt(document.getElementById('duration_value').value),
+                    duration_unit: document.getElementById('duration_unit').value,
+                    subscription_status: document.getElementById('subscription_status').value,
+                    last_renewal_date: document.getElementById('last_renewal_date').value || null,
+                    auto_renew: document.getElementById('auto_renew').checked
+                };
+                
+                // Create typed record
+                const record = PinIdTableRecord.fromForm(formData);
+                
+                // Validate
+                const errors = record.validate();
+                if (errors.length > 0) {
+                    this.showNotification('Validation errors: ' + errors.join(', '), 'error');
+                    return;
+                }
+                
+                try {
+                    let result;
+                    
+                    // Prepare data for Supabase
+                    const supabaseData = {
+                        client_name: record.client_name,
+                        company_name: record.company_name,
+                        address: record.address,
+                        contact_number: record.contact_number,
+                        email: record.email,
+                        payment_name: record.payment_name,
+                        reference_number: record.reference_number,
+                        pin_number: record.pin_number,
+                        plain_pin: record.plain_pin, // Include plain PIN
+                        pin_hash: record.pin_hash,
+                        software_start_date: record.software_start_date,
+                        software_end_date: record.software_end_date,
+                        duration_value: record.duration_value,
+                        duration_unit: record.duration_unit,
+                        subscription_status: record.subscription_status,
+                        last_renewal_date: record.last_renewal_date,
+                        auto_renew: record.auto_renew
+                    };
+                    
+                    if (isUpdate) {
+                        this.logDebug(`Updating record #${recordId} with data:`, supabaseData);
+                        
+                        const { data, error } = await this.supabase
+                            .from('pin_id_table')
+                            .update(supabaseData)
+                            .eq('id', recordId)
+                            .select();
+                        
+                        if (error) {
+                            this.logDebug('Supabase update error:', error);
+                            throw error;
+                        }
+                        result = data[0];
+                        this.logDebug(`Updated record #${recordId}`);
+                        this.showNotification('Record updated successfully', 'success');
+                    } else {
+                        this.logDebug(`Creating new record with data:`, supabaseData);
+                        
+                        const { data, error } = await this.supabase
+                            .from('pin_id_table')
+                            .insert([supabaseData])
+                            .select();
+                        
+                        if (error) {
+                            this.logDebug('Supabase insert error:', error);
+                            throw error;
+                        }
+                        result = data[0];
+                        this.logDebug(`Created new record #${result.id}`);
+                        this.showNotification('Record created successfully', 'success');
+                    }
+                    
+                    this.loadData();
+                    
+                    const dataTab = new bootstrap.Tab(document.getElementById('data-tab'));
+                    dataTab.show();
+                    this.resetForm();
+                    
+                } catch (error) {
+                    this.logDebug('Error saving record: ' + error.message + ' (code: ' + error.code + ')');
+                    this.logDebug('Full error:', error);
+                    this.showNotification('Error saving record: ' + error.message, 'error');
+                }
+            }
+
+            async editRecord(id) {
+                this.logDebug(`Loading record #${id} for editing`);
+                
+                try {
+                    const { data, error } = await this.supabase
+                        .from('pin_id_table')
+                        .select('*')
+                        .eq('id', id)
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    // Populate form with typed data
+                    const record = new PinIdTableRecord(data);
+                    
+                    document.getElementById('recordId').value = record.id;
+                    document.getElementById('client_name').value = record.client_name;
+                    document.getElementById('company_name').value = record.company_name;
+                    document.getElementById('address').value = record.address;
+                    document.getElementById('contact_number').value = record.contact_number;
+                    document.getElementById('email').value = record.email;
+                    document.getElementById('payment_name').value = record.payment_name || '';
+                    document.getElementById('reference_number').value = record.reference_number || '';
+                    document.getElementById('pin_number').value = record.pin_number;
+                    document.getElementById('plain_pin').value = record.plain_pin || record.pin_number;
+                    document.getElementById('pin_hash').value = record.pin_hash || '';
+                    document.getElementById('software_start_date').value = record.software_start_date;
+                    document.getElementById('duration_value').value = record.duration_value;
+                    document.getElementById('duration_unit').value = record.duration_unit;
+                    document.getElementById('subscription_status').value = record.subscription_status;
+                    document.getElementById('last_renewal_date').value = record.last_renewal_date || '';
+                    document.getElementById('auto_renew').checked = record.auto_renew;
+                    
+                    document.getElementById('formTitle').textContent = 'Edit Subscription';
+                    document.getElementById('submitBtn').innerHTML = '<i class="bi bi-check-circle"></i> Update Subscription';
+                    document.getElementById('submitBtn').className = 'btn btn-warning';
+                    
+                    const createTab = new bootstrap.Tab(document.getElementById('create-tab'));
+                    createTab.show();
+                    
+                    this.logDebug(`Loaded record #${id} for editing`);
+                    this.showNotification('Editing record #' + id, 'info');
+                    
+                } catch (error) {
+                    this.logDebug('Error loading record: ' + error.message);
+                    this.showNotification('Error loading record: ' + error.message, 'error');
+                }
+            }
+
+            async viewRecord(id) {
+                this.logDebug(`Viewing details for record #${id}`);
+                
+                try {
+                    const { data, error } = await this.supabase
+                        .from('pin_id_table')
+                        .select('*')
+                        .eq('id', id)
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    const record = new PinIdTableRecord(data);
+                    const daysLeft = this.calculateRemainingDays(record.software_end_date);
+                    const daysClass = this.getRemainingDaysClass(daysLeft);
+                    const daysDisplay = daysLeft >= 0 ? `${daysLeft} days remaining` : `Expired ${Math.abs(daysLeft)} days ago`;
+                    
+                    // Get plain PIN
+                    const plainPin = record.plain_pin || record.pin_number || 'N/A';
+                    
+                    const modalHtml = `
+                        <div class="modal fade" id="viewModal" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Subscription Details #${record.id}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Client Information</h6>
+                                                <p><strong>Name:</strong> ${record.client_name}</p>
+                                                <p><strong>Company:</strong> ${record.company_name}</p>
+                                                <p><strong>Email:</strong> ${record.email}</p>
+                                                <p><strong>Phone:</strong> ${record.contact_number}</p>
+                                                <p><strong>Address:</strong> ${record.address}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6>Subscription Details</h6>
+                                                <p><strong>Status:</strong> <span class="${this.getStatusClass(record.subscription_status)}">${record.subscription_status}</span></p>
+                                                <p><strong>Remaining:</strong> <span class="remaining-days ${daysClass}">${daysDisplay}</span></p>
+                                                <p><strong>Start Date:</strong> ${this.formatDate(record.software_start_date)}</p>
+                                                <p><strong>End Date:</strong> ${this.formatDate(record.software_end_date)}</p>
+                                                <p><strong>Duration:</strong> ${record.duration_value} ${record.duration_unit}</p>
+                                                <p><strong>Auto Renew:</strong> ${record.auto_renew ? 'Yes' : 'No'}</p>
+                                            </div>
+                                        </div>
+                                        <div class="row mt-3">
+                                            <div class="col-12">
+                                                <h6>PIN Information</h6>
+                                                <p><strong>Plain PIN:</strong> <span class="pin-display">${plainPin}</span></p>
+                                                <p><strong>Payment Name:</strong> ${record.payment_name || 'N/A'}</p>
+                                                <p><strong>Reference:</strong> ${record.reference_number || 'N/A'}</p>
+                                                <p><strong>PIN Hash:</strong> 
+                                                    <span class="school-id-display" 
+                                                          onclick="subscriptionApp.showFullSchoolId(this, '${record.pin_hash || 'N/A'}')"
+                                                          title="Click to view full PIN hash for 5 seconds">
+                                                        ${record.pin_hash ? record.pin_hash.substring(0, 32) + '...' : 'N/A'}
+                                                    </span>
+                                                </p>
+                                                <p><strong>Created:</strong> ${this.formatDateTime(record.created_at)}</p>
+                                                <p><strong>Last Updated:</strong> ${this.formatDateTime(record.updated_at)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-primary" onclick="subscriptionApp.editRecord(${record.id})" data-bs-dismiss="modal">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    const modalContainer = document.createElement('div');
+                    modalContainer.innerHTML = modalHtml;
+                    document.body.appendChild(modalContainer);
+                    
+                    const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+                    viewModal.show();
+                    
+                    document.getElementById('viewModal').addEventListener('hidden.bs.modal', function() {
+                        modalContainer.remove();
+                    });
+                    
+                    this.logDebug(`Displayed details for record #${id}`);
+                    
+                } catch (error) {
+                    this.logDebug('Error viewing record: ' + error.message);
+                    this.showNotification('Error viewing record: ' + error.message, 'error');
+                }
+            }
+
+            confirmDelete(id) {
+                this.currentRecordId = id;
+                this.logDebug(`Confirming delete for record #${id}`);
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                deleteModal.show();
+            }
+
+            async deleteRecord() {
+                if (!this.currentRecordId) return;
+                
+                this.logDebug(`Deleting record #${this.currentRecordId}`);
+                
+                try {
+                    const { error } = await this.supabase
+                        .from('pin_id_table')
+                        .delete()
+                        .eq('id', this.currentRecordId);
+                    
+                    if (error) throw error;
+                    
+                    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                    deleteModal.hide();
+                    
+                    this.loadData();
+                    
+                    this.logDebug(`Deleted record #${this.currentRecordId}`);
+                    this.showNotification('Record deleted successfully', 'success');
+                    this.currentRecordId = null;
+                    
+                } catch (error) {
+                    this.logDebug('Error deleting record: ' + error.message);
+                    this.showNotification('Error deleting record: ' + error.message, 'error');
+                }
+            }
+
+            updateStatistics() {
+                const total = this.allData.length;
+                const active = this.allData.filter(d => d.subscription_status === 'active').length;
+                const pending = this.allData.filter(d => d.subscription_status === 'pending').length;
+                const expired = this.allData.filter(d => d.subscription_status === 'expired').length;
+                
+                document.getElementById('totalCount').textContent = total;
+                document.getElementById('activeCount').textContent = active;
+                document.getElementById('pendingCount').textContent = pending;
+                document.getElementById('expiredCount').textContent = expired;
+                
+                this.updateChart();
+                this.updateExpiringSoon();
+                
+                this.logDebug(`Statistics updated: Total=${total}, Active=${active}, Pending=${pending}, Expired=${expired}`);
+            }
+
+            updateChart() {
+                const ctx = document.getElementById('statusChart').getContext('2d');
+                
+                if (this.chartInstance) {
+                    this.chartInstance.destroy();
+                }
+                
+                const statusCounts = {
+                    active: this.allData.filter(d => d.subscription_status === 'active').length,
+                    expired: this.allData.filter(d => d.subscription_status === 'expired').length,
+                    pending: this.allData.filter(d => d.subscription_status === 'pending').length,
+                    trial: this.allData.filter(d => d.subscription_status === 'trial').length,
+                    cancelled: this.allData.filter(d => d.subscription_status === 'cancelled').length,
+                    unknown: this.allData.filter(d => d.subscription_status === 'unknown').length
+                };
+                
+                this.chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(statusCounts),
+                        datasets: [{
+                            data: Object.values(statusCounts),
+                            backgroundColor: [
+                                '#28a745',
+                                '#dc3545',
+                                '#ffc107',
+                                '#17a2b8',
+                                '#6c757d',
+                                '#343a40'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            }
+                        }
+                    }
+                });
+                
+                this.logDebug('Chart updated');
+            }
+
+            updateExpiringSoon() {
+                const today = new Date();
+                const thirtyDaysFromNow = new Date();
+                thirtyDaysFromNow.setDate(today.getDate() + 30);
+                
+                const expiring = this.allData.filter(record => {
+                    if (record.subscription_status !== 'active') return false;
+                    
+                    const daysLeft = this.calculateRemainingDays(record.software_end_date);
+                    
+                    return daysLeft > 0 && daysLeft <= 30;
+                }).sort((a, b) => new Date(a.software_end_date) - new Date(b.software_end_date));
+                
+                const tbody = document.getElementById('expiringSoonBody');
+                
+                if (expiring.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                No subscriptions expiring in the next 30 days
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                expiring.forEach(record => {
+                    const daysLeft = this.calculateRemainingDays(record.software_end_date);
+                    const daysClass = this.getRemainingDaysClass(daysLeft);
+                    const plainPin = record.plain_pin || record.pin_number || 'N/A';
+                    const shortPin = plainPin.substring(0, 8) + (plainPin.length > 8 ? '...' : '');
+                    
+                    html += `
+                        <tr>
+                            <td>${record.client_name}</td>
+                            <td>${this.formatDate(record.software_end_date)}</td>
+                            <td class="${daysClass}">${daysLeft} days</td>
+                            <td>
+                                <span class="pin-display" title="Plain PIN: ${plainPin}">
+                                    ${shortPin}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tbody.innerHTML = html;
+                
+                this.logDebug(`Found ${expiring.length} subscriptions expiring soon`);
+            }
+
+            exportToCSV() {
+                if (this.allData.length === 0) {
+                    this.showNotification('No data to export', 'warning');
+                    return;
+                }
+                
+                const headers = ['ID', 'Client Name', 'Company', 'Email', 'Phone', 'Start Date', 'End Date', 'Remaining Days', 'Status', 'Plain PIN', 'PIN Hash'];
+                
+                const csvRows = [
+                    headers.join(','),
+                    ...this.allData.map(record => {
+                        const daysLeft = this.calculateRemainingDays(record.software_end_date);
+                        const daysDisplay = daysLeft >= 0 ? `${daysLeft} days` : `Expired ${Math.abs(daysLeft)} days ago`;
+                        const plainPin = record.plain_pin || record.pin_number || '';
+                        
+                        return [
+                            record.id,
+                            `"${record.client_name}"`,
+                            `"${record.company_name}"`,
+                            `"${record.email}"`,
+                            `"${record.contact_number}"`,
+                            record.software_start_date,
+                            record.software_end_date,
+                            daysDisplay,
+                            record.subscription_status,
+                            `"${plainPin}"`,
+                            `"${record.pin_hash || ''}"`
+                        ].join(',');
+                    })
+                ];
+                
+                const csvString = csvRows.join('\n');
+                const blob = new Blob([csvString], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `subscriptions_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                this.logDebug(`Exported ${this.allData.length} records to CSV`);
+                this.showNotification('Data exported to CSV', 'success');
+            }
+
+            async runTestQuery() {
+                const testType = document.getElementById('testQuery').value;
+                this.logDebug(`Running test query: ${testType}`);
+                
+                try {
+                    let result;
+                    
+                    switch(testType) {
+                        case 'select_all':
+                            result = await this.supabase.from('pin_id_table').select('*').limit(5);
+                            break;
+                        case 'count':
+                            result = await this.supabase.from('pin_id_table').select('*', { count: 'exact', head: true });
+                            break;
+                        case 'schema':
+                            result = { data: { info: 'Schema information requires direct database access' } };
+                            break;
+                    }
+                    
+                    document.getElementById('apiResponse').textContent = JSON.stringify(result, null, 2);
+                    this.logDebug(`Test query completed: ${testType}`);
+                    
+                } catch (error) {
+                    document.getElementById('apiResponse').textContent = JSON.stringify({ error: error.message }, null, 2);
+                    this.logDebug(`Test query error: ${error.message}`);
+                }
+            }
+
+            refreshData() {
+                this.logDebug('Manual refresh triggered');
+                this.loadData();
+            }
+
+            showNotification(message, type = 'info') {
+                const toastEl = document.getElementById('notificationToast');
+                const toastTitle = document.getElementById('toastTitle');
+                const toastMessage = document.getElementById('toastMessage');
+                const toast = new bootstrap.Toast(toastEl);
+                
+                const titles = {
+                    'success': 'Success',
+                    'error': 'Error',
+                    'warning': 'Warning',
+                    'info': 'Info'
+                };
+                
+                toastTitle.textContent = titles[type] || 'Notification';
+                toastMessage.textContent = message;
+                
+                toastEl.className = 'toast';
+                toastEl.classList.add(`bg-${type === 'error' ? 'danger' : type}`);
+                toastEl.classList.add('text-white');
+                
+                toast.show();
+                
+                this.logDebug(`Notification: ${type} - ${message}`);
+            }
+
+            // Helper functions
+            getStatusClass(status) {
+                switch(status) {
+                    case 'active': return 'status-active';
+                    case 'expired': return 'status-expired';
+                    case 'pending': return 'status-pending';
+                    case 'trial': return 'text-info';
+                    case 'cancelled': return 'text-secondary';
+                    default: return 'text-dark';
+                }
+            }
+
+            formatDate(dateString) {
+                if (!dateString) return 'N/A';
+                return new Date(dateString).toLocaleDateString();
+            }
+
+            formatDateTime(dateTimeString) {
+                if (!dateTimeString) return 'N/A';
+                return new Date(dateTimeString).toLocaleString();
+            }
+        }
+
+        // Initialize the application
+        const subscriptionApp = new SubscriptionManagementApp();
+        document.addEventListener('DOMContentLoaded', () => subscriptionApp.init());
+    </script>
+</body>
+</html>

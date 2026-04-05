@@ -1,0 +1,15 @@
+ 
+ https://jcplsxvfpjrbdrxdipcq.supabase.co
+
+ anon public:   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjcGxzeHZmcGpyYmRyeGRpcGNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2NzUyNjksImV4cCI6MjA4NDI1MTI2OX0.32OrcHpw29bYf6n2hr6b7a17ybw3-vIU_dU-V4iZ9vo
+ service_role: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjcGxzeHZmcGpyYmRyeGRpcGNxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODY3NTI2OSwiZXhwIjoyMDg0MjUxMjY5fQ.2Q9Y5ttNqcXGqiRiRSbzqTXlQgecUljPZfX7wObZ1-I
+ 
+ 
+ 9179242 === Pry
+ 207053 === Jss
+ 268017 == SSS
+ 
+ALTER TABLE tbl_sch_info 
+ADD COLUMN email VARCHAR(255),
+ADD COLUMN days_status VARCHAR(255),
+ADD COLUMN remaining_days INT;
