@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Subscription Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 50px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: none;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+        .form-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            max-width: 400px;
+        }
+        .badge-admin {
+            font-size: 0.85em;
+            padding: 3px 6px;
+            background: #6c757d;
+            color: white;
+        }
+        .action-buttons .btn {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+        .status-active { background: #e8f5e9; color: #28a745; }
+        .status-inactive { background: #f8d7da; color: #dc3545; }
+        .no-users-text {
+            text-align: center;
+            color: #6c757d;
+            padding: 40px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h2 class="mb-0">
+                            <i class="bi bi-person-lock"></i> User Management
+                        </h2>
+                        <div>
+                            <span id="userConnectionStatus" class="badge bg-secondary">Loading...</span>
+                            <a href="index.html" class="btn btn-light btn-sm ms-2">
+                                <i class="bi bi-arrow-left"></i> Back to App
+                            </a>
+                            <button class="btn btn-outline-light btn-sm ms-2" onclick="userApp.logout()">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-4" id="userTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="users-data-tab" data-bs-toggle="tab" data-bs-target="#users-data" type="button">
+                    <i class="bi bi-people"></i> All Users
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-create-tab" data-bs-toggle="tab" data-bs-target="#users-create" type="button">
+                    <i class="bi bi-person-plus"></i> Create User
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-stats-tab" data-bs-toggle="tab" data-bs-target="#users-stats" type="button">
+                    <i class="bi bi-bar-chart"></i> Statistics
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-password-tab" data-bs-toggle="tab" data-bs-target="#users-password" type="button">
+                    <i class="bi bi-key"></i> Password Tools
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+        <!-- Users Table Tab -->
+        <div class="tab-pane fade show active" id="users-data" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0">All Users</h4>
+                            <div class="d-flex">
+                                <input type="text" id="userFilterInput" class="form-control form-control-sm search-box" 
+                                       placeholder="Search users..." style="max-width: 300px;">
+                                <button class="btn btn-sm btn-outline-primary ms-2" onclick="userApp.refreshUsers()">
+                                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="usersTable">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Username</th>
+                                            <th>Email</th>
+                                            <th>Full Name</th>
+                                            <th>Role</th>
+                                            <th>Status</th>
+                                            <th>Last Login</th>
+                                            <th>Created At</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody">
+                                        <tr>
+                                            <td colspan="9" class="text-center">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                                <p class="mt-2">Loading users...</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div id="userRecordCount">Loading users...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create User Tab -->
+        <div class="tab-pane fade" id="users-create" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="mb-0" id="createUserFormTitle">Create New User</h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="createUserForm">
+                                <div class="mb-3">
+                                    <label for="newUserUsername" class="form-label">Username *</label>
+                                    <input type="text" class="form-control" id="newUserUsername" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newUserEmail" class="form-label">Email *</label>
+                                    <input type="email" class="form-control" id="newUserEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newUserPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="newUserPassword">
+                                    <div class="form-text">Required when creating a user. Leave blank when editing to keep the current password.</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newUserFullName" class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="newUserFullName">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newUserRole" class="form-label">Role</label>
+                                    <select class="form-control" id="newUserRole">
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                    <div class="form-text">Role is used to control access to user management features.</div>
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="newUserIsActive" checked>
+                                    <label class="form-check-label" for="newUserIsActive">
+                                        Active
+                                    </label>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-secondary" onclick="userApp.resetCreateForm()">
+                                        <i class="bi bi-x-circle"></i> Reset
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-person-plus"></i> Create User
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Tab -->
+        <div class="tab-pane fade" id="users-stats" role="tabpanel">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card text-white bg-primary">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Users</h5>
+                            <h2 id="totalUsersCount">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <h5 class="card-title">Active</h5>
+                            <h2 id="activeUsersCount">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body">
+                            <h5 class="card-title">Pending</h5>
+                            <h2 id="pendingUsersCount">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-danger">
+                        <div class="card-body">
+                            <h5 class="card-title">Unknown</h5>
+                            <h2 id="unknownUsersCount">0</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Password Tools Tab -->
+        <div class="tab-pane fade" id="users-password" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="mb-0"><i class="bi bi-shield-lock"></i> Hash Password</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Convert a plain text password into a bcrypt <code>password_hash</code> value ready to store in the users table.</p>
+                            <div class="mb-3">
+                                <label for="hashPasswordInput" class="form-label">Plain Text Password</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="hashPasswordInput" placeholder="Enter password to hash">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="userApp.toggleInputVisibility('hashPasswordInput', this)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="hashCostInput" class="form-label">Bcrypt Cost Factor</label>
+                                <select class="form-control" id="hashCostInput">
+                                    <option value="10" selected>10 (recommended)</option>
+                                    <option value="8">8 (faster)</option>
+                                    <option value="12">12 (more secure)</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" onclick="userApp.hashPassword()">
+                                <i class="bi bi-calculator"></i> Generate Hash
+                            </button>
+                            <div class="mt-3" id="hashResultSection" style="display: none;">
+                                <label class="form-label">Generated password_hash</label>
+                                <div class="input-group">
+                                    <textarea class="form-control" id="hashResultOutput" rows="2" readonly></textarea>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="userApp.copyToClipboard('hashResultOutput')" title="Copy to clipboard">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="mb-0"><i class="bi bi-search"></i> Verify Password</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Check a plain text password against a stored bcrypt hash to confirm it matches.</p>
+                            <div class="mb-3">
+                                <label for="verifyPasswordInput" class="form-label">Plain Text Password</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="verifyPasswordInput" placeholder="Enter password to check">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="userApp.toggleInputVisibility('verifyPasswordInput', this)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="verifyHashInput" class="form-label">Bcrypt Hash</label>
+                                <textarea class="form-control" id="verifyHashInput" rows="3" placeholder="Paste the password_hash value"></textarea>
+                            </div>
+                            <button class="btn btn-primary" onclick="userApp.verifyPassword()">
+                                <i class="bi bi-check-circle"></i> Verify
+                            </button>
+                            <div class="mt-3" id="verifyResultSection" style="display: none;">
+                                <div class="alert" id="verifyResultAlert" role="alert"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div><!-- /tab-content -->
+    <!-- Delete Confirmation Modal -->
+        <div class="modal fade" id="deleteUserModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to delete this user? This action cannot be undone.
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirmDeleteUserBtn">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+    <script>
+        // bcryptjs UMD exposes the library as window.dcodeIO.bcrypt. Normalize to `bcrypt` for convenience.
+        var bcrypt = window.bcrypt || (window.dcodeIO && window.dcodeIO.bcrypt);
+    </script>
+    
+    <script>
+        const SUPABASE_URL = 'https://jcplsxvfpjrbdrxdipcq.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_2z_yb7ve7KBs5Y1n43mpPw_hjmgOukg';
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Reference to the users table
+        const usersTable = supabaseClient.from('users');
+        
+        class UserManagementApp {
+            constructor() {
+                this.allUsers = [];
+                this.currentEditingUser = null;
+                this.editingUserId = null;
+                this.deleteUserId = null;
+            }
+            
+            async init() {
+                this.logDebug('Initializing User Management App');
+                
+                if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+                    this.showLoadError('The Supabase library failed to load from the CDN. Check your internet connection or disable ad-blockers, then refresh the page.');
+                    return;
+                }
+                
+                try {
+                    await this.loadUsers();
+                } catch (error) {
+                    this.showLoadError('Failed to load users: ' + error.message);
+                    return;
+                }
+                
+                this.setupEventListeners();
+                
+                // Check auth state - accept either Supabase Auth session or localStorage session
+                supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    if (!session && !localStorage.getItem('user')) {
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
+
+            showLoadError(message) {
+                const tbody = document.getElementById('usersTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="text-center">
+                                <div class="alert alert-danger mb-2">
+                                    <strong>Unable to load users</strong>
+                                    <p class="mb-2">${message}</p>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="userApp.refreshUsers()">
+                                        <i class="bi bi-arrow-clockwise"></i> Retry
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+                document.getElementById('userRecordCount').textContent = 'Load failed';
+                const badge = document.getElementById('userConnectionStatus');
+                if (badge) {
+                    badge.className = 'badge bg-danger';
+                    badge.textContent = 'Load Failed';
+                }
+            }
+            
+            logout() {
+                localStorage.removeItem('user');
+                supabaseClient.auth.signOut().finally(() => {
+                    window.location.href = 'login.html';
+                });
+            }
+            
+            logDebug(message) {
+                const now = new Date().toLocaleTimeString();
+                console.log(`[${now}] UserManagement: ${message}`);
+            }
+            
+            setupEventListeners() {
+                document.getElementById('createUserForm').addEventListener('submit', (e) => this.handleCreateUser(e));
+                document.getElementById('userFilterInput').addEventListener('keyup', (e) => this.filterUsers(e.target.value));
+                document.getElementById('confirmDeleteUserBtn').addEventListener('click', () => this.deleteUser());
+            }
+            
+            async loadUsers() {
+                try {
+                    this.logDebug('Loading users from users table...');
+                    
+                    const { data, error } = await usersTable.select('*').order('created_at', { ascending: false });
+                    
+                    if (error) {
+                        this.logDebug('Error loading users: ' + error.message);
+                        this.showNotification('Error loading users: ' + error.message, 'error');
+                        this.showLoadError(error.message + (error.code ? ' (code: ' + error.code + ')' : ''));
+                        return;
+                    }
+                    
+                    this.allUsers = data || [];
+                    this.logDebug(`Loaded ${this.allUsers.length} users from users table`);
+                    
+                    this.displayUsers(this.allUsers);
+                    this.updateStatistics();
+                    
+                } catch (error) {
+                    this.logDebug('Exception loading users: ' + error.message);
+                    this.showNotification('Error loading users: ' + error.message, 'error');
+                    this.showLoadError(error.message);
+                }
+            }
+            
+            displayUsers(data) {
+                const tbody = document.getElementById('usersTableBody');
+                
+                if (data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="text-center text-muted">
+                                No users found. Create your first user!
+                            </td>
+                        </tr>
+                    `;
+                    document.getElementById('userRecordCount').textContent = '0 users';
+                    return;
+                }
+                
+                let html = '';
+                data.forEach(user => {
+                    const statusClass = user.is_active ? 'status-active' : 'status-inactive';
+                    const roleBadge = user.role === 'admin' ? 'badge-admin' : 'badge bg-secondary';
+                    const lastLogin = user.last_login ? new Date(user.last_login).toLocaleString() : 'Never';
+                    const created = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A';
+                    
+                    html += `
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.username || user.email}</td>
+                            <td>${user.email}</td>
+                            <td>${user.full_name || 'N/A'}</td>
+                            <td><span class="${roleBadge}">${user.role || 'user'}</span></td>
+                            <td><span class="${statusClass}">${user.is_active ? 'Active' : 'Inactive'}</span></td>
+                            <td>${lastLogin}</td>
+                            <td>${created}</td>
+                            <td class="action-buttons">
+                                <button class="btn btn-sm btn-outline-primary" onclick="userApp.viewUser(${user.id})">
+                                    <i class="bi bi-eye"></i> View
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="userApp.editUser(${user.id})">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="userApp.confirmDeleteUser(${user.id})">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tbody.innerHTML = html;
+                document.getElementById('userRecordCount').textContent = `${data.length} users`;
+            }
+            
+            async handleCreateUser(e) {
+                e.preventDefault();
+                const username = document.getElementById('newUserUsername').value.trim();
+                const email = document.getElementById('newUserEmail').value.trim();
+                const fullName = document.getElementById('newUserFullName').value.trim();
+                const role = document.getElementById('newUserRole').value || 'user';
+                const isActive = document.getElementById('newUserIsActive').checked;
+                const password = document.getElementById('newUserPassword').value;
+                
+                if (!username || !email) {
+                    this.showNotification('Username and Email are required', 'warning');
+                    return;
+                }
+                
+                try {
+                    if (this.editingUserId) {
+                        // Update existing user
+                        const updatedData = {
+                            username,
+                            email,
+                            full_name: fullName,
+                            role,
+                            is_active: isActive,
+                            updated_at: new Date().toISOString()
+                        };
+                        
+                        if (password) {
+                            updatedData.password_hash = (typeof bcrypt !== 'undefined') ? bcrypt.hashSync(password, 10) : password;
+                        }
+                        
+                        const { error } = await usersTable.update(updatedData).eq('id', this.editingUserId);
+                        
+                        if (error) {
+                            this.showNotification('Error updating user: ' + error.message, 'error');
+                            return;
+                        }
+                        
+                        this.showNotification('User updated successfully', 'success');
+                    } else {
+                        // Create new user
+                        if (!password) {
+                            this.showNotification('Password is required when creating a user', 'warning');
+                            return;
+                        }
+                        
+                        const hash = (typeof bcrypt !== 'undefined') ? bcrypt.hashSync(password, 10) : password;
+                        
+                        const { data, error } = await usersTable.insert({
+                            username,
+                            email,
+                            password_hash: hash,
+                            full_name: fullName,
+                            role,
+                            is_active: isActive
+                        }).select();
+                        
+                        if (error) {
+                            this.showNotification('Error creating user: ' + error.message, 'error');
+                            return;
+                        }
+                        
+                        this.showNotification('User created successfully', 'success');
+                    }
+                    
+                    this.resetCreateForm();
+                    await this.loadUsers();
+                    
+                } catch (error) {
+                    this.showNotification('Error: ' + error.message, 'error');
+                }
+            }
+            
+            filterUsers(searchTerm) {
+                const term = (searchTerm || '').toLowerCase();
+                const filtered = this.allUsers.filter(user => 
+                    ((user.username || '') + ' ' + (user.email || '') + ' ' + (user.full_name || '') + ' ' + (user.role || '')).toLowerCase().includes(term)
+                );
+                this.displayUsers(filtered);
+            }
+            
+            async viewUser(userId) {
+                const user = this.allUsers.find(u => u.id === userId);
+                if (!user) return;
+                
+                const modelHtml = `
+                    <div class="modal fade" id="viewModal" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">User Details #${user.id}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>User Information</h6>
+                                            <p><strong>Username:</strong> ${user.username}</p>
+                                            <p><strong>Email:</strong> ${user.email}</p>
+                                            <p><strong>Full Name:</strong> ${user.full_name || 'N/A'}</p>
+                                            <p><strong>Role:</strong> ${user.role || 'user'}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Account Status</h6>
+                                            <p><strong>Is Active:</strong> ${user.is_active ? 'Yes' : 'No'}</p>
+                                            <p><strong>Last Login:</strong> ${user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</p>
+                                            <p><strong>Created At:</strong> ${user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const modalContainer = document.createElement('div');
+                modalContainer.innerHTML = modelHtml;
+                document.body.appendChild(modalContainer);
+                
+                const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+                viewModal.show();
+                
+                document.getElementById('viewModal').addEventListener('hidden.bs.modal', function() {
+                    modalContainer.remove();
+                });
+            }
+            
+            async editUser(userId) {
+                const user = this.allUsers.find(u => u.id === userId);
+                if (!user) return;
+                
+                this.editingUserId = userId;
+                this.currentEditingUser = user;
+                
+                // Populate form for editing
+                document.getElementById('newUserUsername').value = user.username || '';
+                document.getElementById('newUserEmail').value = user.email || '';
+                document.getElementById('newUserFullName').value = user.full_name || '';
+                document.getElementById('newUserPassword').value = '';
+                document.getElementById('newUserRole').value = user.role || 'user';
+                document.getElementById('newUserIsActive').checked = !!user.is_active;
+                
+                // Change heading and button text
+                document.getElementById('createUserFormTitle').textContent = 'Edit User #' + user.id;
+                const submitBtn = document.querySelector('#createUserForm .btn-primary');
+                submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Update User';
+                submitBtn.className = 'btn btn-warning';
+                
+                // Show the create tab
+                document.getElementById('users-create-tab').click();
+            }
+            
+            confirmDeleteUser(userId) {
+                this.deleteUserId = userId;
+                this.logDebug('Confirming delete for user #' + userId);
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+                deleteModal.show();
+            }
+
+            async deleteUser() {
+                if (!this.deleteUserId) return;
+                
+                try {
+                    const { error } = await usersTable.delete().eq('id', this.deleteUserId);
+                    
+                    if (error) {
+                        this.showNotification('Error deleting user: ' + error.message, 'error');
+                        return;
+                    }
+                    
+                    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteUserModal'));
+                    deleteModal.hide();
+                    
+                    this.showNotification('User deleted successfully', 'success');
+                    await this.loadUsers();
+                    this.deleteUserId = null;
+                    
+                } catch (error) {
+                    this.showNotification('Error deleting user: ' + error.message, 'error');
+                }
+            }
+            
+            updateStatistics() {
+                const total = this.allUsers.length;
+                const active = this.allUsers.filter(d => d.is_active).length;
+                const pending = this.allUsers.filter(d => !d.is_active).length;
+                
+                document.getElementById('totalUsersCount').textContent = total;
+                document.getElementById('activeUsersCount').textContent = active;
+                document.getElementById('pendingUsersCount').textContent = pending;
+                document.getElementById('unknownUsersCount').textContent = 0;
+                
+                this.logDebug(`Statistics updated: Total=${total}, Active=${active}, Inactive=${total - active}`);
+            }
+            
+            resetCreateForm() {
+                this.editingUserId = null;
+                this.currentEditingUser = null;
+                document.getElementById('createUserForm').reset();
+                document.getElementById('createUserFormTitle').textContent = 'Create New User';
+                document.getElementById('newUserRole').value = 'user';
+                const submitBtn = document.querySelector('#createUserForm .btn-primary');
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<i class="bi bi-person-plus"></i> Create User';
+                    submitBtn.className = 'btn btn-primary';
+                }
+            }
+            
+            hashPassword() {
+                const password = document.getElementById('hashPasswordInput').value;
+                if (!password) {
+                    this.showNotification('Please enter a password to hash', 'warning');
+                    return;
+                }
+
+                const cost = parseInt(document.getElementById('hashCostInput').value, 10) || 10;
+                let hash;
+                if (typeof bcrypt !== 'undefined' && typeof bcrypt.hashSync === 'function') {
+                    hash = bcrypt.hashSync(password, cost);
+                } else {
+                    hash = 'Bcrypt library is not loaded. Check your internet connection or ad-blockers.';
+                }
+
+                document.getElementById('hashResultOutput').value = hash;
+                document.getElementById('hashResultSection').style.display = 'block';
+                this.showNotification('Password hashed successfully', 'success');
+            }
+
+            verifyPassword() {
+                const password = document.getElementById('verifyPasswordInput').value;
+                const hash = document.getElementById('verifyHashInput').value.trim();
+
+                if (!password || !hash) {
+                    this.showNotification('Please enter both the password and the hash', 'warning');
+                    return;
+                }
+
+                let match = false;
+                if (typeof bcrypt !== 'undefined' && typeof bcrypt.compareSync === 'function' && hash.startsWith('$2')) {
+                    try {
+                        match = bcrypt.compareSync(password, hash);
+                    } catch (e) {
+                        match = false;
+                    }
+                } else {
+                    match = (password === hash);
+                }
+
+                const alertEl = document.getElementById('verifyResultAlert');
+                document.getElementById('verifyResultSection').style.display = 'block';
+                alertEl.className = 'alert ' + (match ? 'alert-success' : 'alert-danger');
+                alertEl.innerHTML = match
+                    ? '<strong><i class="bi bi-check-circle"></i> MATCH:</strong> The password matches the hash.'
+                    : '<strong><i class="bi bi-x-circle"></i> NO MATCH:</strong> The password does not match the hash.';
+
+                this.showNotification(match ? 'Password verified - it matches the hash' : 'Password verification failed', match ? 'success' : 'error');
+            }
+
+            copyToClipboard(elementId) {
+                const el = document.getElementById(elementId);
+                if (!el) return;
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(el.value).then(() => {
+                        this.showNotification('Hash copied to clipboard', 'success');
+                    });
+                } else {
+                    el.select();
+                    document.execCommand('copy');
+                    this.showNotification('Hash copied to clipboard', 'success');
+                }
+            }
+
+            toggleInputVisibility(elementId, btn) {
+                const el = document.getElementById(elementId);
+                if (!el || !btn) return;
+
+                const isPassword = el.type === 'password';
+                el.type = isPassword ? 'text' : 'password';
+                btn.querySelector('i').className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+            }
+
+            showNotification(message, type = 'info') {
+                // Create toast if not exists
+                let toastEl = document.getElementById('notificationToast');
+                if (!toastEl) {
+                    toastEl = document.createElement('div');
+                    toastEl.id = 'notificationToast';
+                    toastEl.className = 'toast position-fixed bottom-0 end-0 p-3';
+                    toastEl.setAttribute('role', 'alert');
+                    toastEl.setAttribute('aria-live', 'assertive');
+                    toastEl.innerHTML = `
+                        <div class="toast-header">
+                            <strong class="me-auto" id="toastTitle">Notification</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body" id="toastMessage">
+                            Operation completed successfully.
+                        </div>
+                    `;
+                    document.body.appendChild(toastEl);
+                }
+                
+                const toastTitle = document.getElementById('toastTitle');
+                const toastMessage = document.getElementById('toastMessage');
+                const toast = new bootstrap.Toast(toastEl);
+                
+                const titles = {
+                    'success': 'Success',
+                    'error': 'Error',
+                    'warning': 'Warning',
+                    'info': 'Info'
+                };
+                
+                toastTitle.textContent = titles[type] || 'Notification';
+                toastMessage.textContent = message;
+                
+                toastEl.className = 'toast';
+                toastEl.classList.add(`bg-${type === 'error' ? 'danger' : type}`);
+                toastEl.classList.add('text-white');
+                
+                toast.show();
+                this.logDebug(`Notification: ${type} - ${message}`);
+            }
+        }
+        
+        // Initialize the application
+        const userApp = new UserManagementApp();
+        document.addEventListener('DOMContentLoaded', () => userApp.init());
+    </script>
+</body>
+</html>

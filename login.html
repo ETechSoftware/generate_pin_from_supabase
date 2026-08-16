@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Subscription Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 40px 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .login-card h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #333;
+        }
+        .login-card .form-control {
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            font-size: 0.95rem;
+        }
+        .login-card .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .login-card .btn-primary {
+            border-radius: 5px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            width: 100%;
+            font-weight: 500;
+        }
+        .login-card .btn-primary:hover {
+            background: linear-gradient(135deg, #5a67d8 0%, #6a41c5 100%);
+        }
+        .login-card .link-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        .login-card .link-text a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .login-card .link-text a:hover {
+            text-decoration: underline;
+        }
+        .login-card .spinner {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>Login</h2>
+        
+        <form id="loginForm">
+            <div class="mb-3">
+                <label class="form-label">Email address</label>
+                <input type="email" class="form-control" id="loginEmail" required placeholder="you@example.com">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-control" id="loginPassword" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
+        
+        <div class="link-text">
+            <a href="#" id="showSignup">Create account</a>
+        </div>
+        
+        <div id="signupPanel" style="display: none; margin-top: 20px;">
+            <h4>Create Account</h4>
+            <form id="signupForm">
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-control" id="signupName" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="signupEmail" required placeholder="you@example.com">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" id="signupPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Sign Up</button>
+            </form>
+            <div class="mt-3 text-center">
+                <a href="#" id="showLogin" style="color: #667eea; text-decoration: none;">Already have an account?</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+    <script>
+        // bcryptjs UMD exposes the library as window.dcodeIO.bcrypt. Normalize to `bcrypt` for convenience.
+        var bcrypt = window.bcrypt || (window.dcodeIO && window.dcodeIO.bcrypt);
+    </script>
+    <script>
+        const SUPABASE_URL = 'https://jcplsxvfpjrbdrxdipcq.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_2z_yb7ve7KBs5Y1n43mpPw_hjmgOukg';
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Reference to the users table
+        const usersTable = supabaseClient.from('users');
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                alert('Please enter your email and password');
+                return;
+            }
+            
+            const loginBtn = document.querySelector('#loginForm button[type="submit"]');
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Signing in...';
+            
+            try {
+                // First try Supabase Auth
+                const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (!authError && authData.session) {
+                    localStorage.setItem('user', JSON.stringify({
+                        id: authData.user.id,
+                        email: authData.user.email,
+                        full_name: (authData.user.user_metadata && authData.user.user_metadata.full_name) || email.split('@')[0],
+                        role: 'user',
+                        login_type: 'auth'
+                    }));
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                // Fallback: check the users table for accounts created via signup
+                const { data: user, error } = await usersTable.select('*').eq('email', email).maybeSingle();
+                
+                if (error || !user) {
+                    alert('Login failed: Invalid email or password');
+                    return;
+                }
+                
+                if (!user.is_active) {
+                    alert('Login failed: This account is inactive');
+                    return;
+                }
+                
+                // Verify password (supports bcrypt hashes and legacy plain-text)
+                let passwordOk = false;
+                const stored = user.password_hash || '';
+                if (typeof bcrypt !== 'undefined' && stored.startsWith('$2')) {
+                    passwordOk = bcrypt.compareSync(password, stored);
+                } else {
+                    passwordOk = (stored === password);
+                }
+                
+                if (!passwordOk) {
+                    alert('Login failed: Invalid email or password');
+                    return;
+                }
+                
+                // Set session manually for the users table user
+                const now = new Date().toISOString();
+                await usersTable.update({ last_login: now }).eq('id', user.id);
+                
+                // Store user info in localStorage for this session
+                localStorage.setItem('user', JSON.stringify({
+                    id: user.id,
+                    email: user.email,
+                    full_name: user.full_name,
+                    role: user.role,
+                    login_type: 'table'
+                }));
+                
+                window.location.href = 'index.html';
+            } catch (err) {
+                console.error('Login error:', err);
+                alert('Login failed: ' + err.message);
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = 'Sign In';
+            }
+        });
+        
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            
+            if (!name || !email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+            
+            const signupBtn = document.querySelector('#signupForm button[type="submit"]');
+            signupBtn.disabled = true;
+            
+            try {
+                // Check if user already exists
+                const { data: existingUser } = await usersTable.select('id').eq('email', email).maybeSingle();
+                
+                if (existingUser) {
+                    alert('Account already exists with this email!');
+                    return;
+                }
+                
+                // Hash the password with bcrypt before storing
+                const hash = (typeof bcrypt !== 'undefined') ? bcrypt.hashSync(password, 10) : password;
+                
+                // Create user in users table
+                const { data, error } = await usersTable.insert({
+                    username: email.split('@')[0],
+                    email,
+                    password_hash: hash,
+                    full_name: name,
+                    role: 'user',
+                    is_active: true
+                }).select();
+                
+                if (error) {
+                    alert('Signup failed: ' + error.message);
+                    return;
+                }
+                
+                alert('Account created successfully! Please login with your email and password.');
+                document.getElementById('signupForm').reset();
+                showLoginPanel();
+            } catch (err) {
+                alert('Signup failed: ' + err.message);
+            } finally {
+                signupBtn.disabled = false;
+            }
+        });
+        
+        function showSignupPanel() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('signupPanel').style.display = 'block';
+            document.getElementById('showSignup').closest('.link-text').style.display = 'none';
+        }
+        
+        function showLoginPanel() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('signupPanel').style.display = 'none';
+            document.getElementById('showSignup').closest('.link-text').style.display = 'block';
+        }
+        
+        document.getElementById('showSignup').addEventListener('click', (e) => {
+            e.preventDefault();
+            showSignupPanel();
+        });
+        
+        document.getElementById('showLogin').addEventListener('click', (e) => {
+            e.preventDefault();
+            showLoginPanel();
+        });
+        
+        // Check current auth state
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (session || localStorage.getItem('user')) {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+</html>
